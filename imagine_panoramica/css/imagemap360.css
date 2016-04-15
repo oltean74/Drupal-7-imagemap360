@@ -1,0 +1,134 @@
+  .combo select {
+      border: 0 !important;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      text-indent: 0.01px;
+      text-overflow: "";
+      background: black;
+      filter: alpha(opacity=50);
+      opacity: .5;
+      transition: all 0.3s ease-out;
+      font-size: 25px;
+      color: yellow;
+  }
+  #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      filter: alpha(opacity=80);
+      -moz-opacity: 0.8;
+      -khtml-opacity: 0.8;
+      opacity: 0.8;
+      z-index: 10000;
+  }
+  #spinner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      z-index: 99999;
+      width: 60px;
+      height: 60px;
+      margin: -30px 0 0 -30px;
+      text-indent: -999em;
+      background: url(../img/progress.gif) no-repeat center center;
+  }
+  .imagemap360-container .area {
+      position: absolute;
+      display: block;
+      border: 1px solid yellow;
+      filter: alpha(opacity=10);
+      opacity: 0.1;
+      background: black;
+  }
+  .imagemap360-viewport {
+      position: relative;
+      width: auto;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      text-align: left;
+  }
+  .imagemap360-viewport.full {
+      left: 0;
+      margin: 0 -20px;
+      padding: 0 20px;
+      overflow: hidden;
+      position: fixed;
+      right: 0;
+      top: 0;
+      z-index: 600;
+  }
+  .imagemap360-viewport.loader {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      z-index: 0;
+      width: 60px;
+      height: 60px;
+      margin: -30px 0 0 -30px;
+      text-indent: -999em;
+      background: url(../img/progress.gif) no-repeat center center;
+  }
+  .img_imagemap360Viewport .imagemap360Container {
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      margin: auto;
+  }
+  .imagemap360-container {
+      position: relative;
+      width: 10000px;
+      margin: 0;
+      padding: 0;
+  }
+  .imagemap360-control {
+      position: absolute;
+      display: none;
+      padding: 0;
+      margin: 0;
+      bottom: 1px;
+      left: 0;
+      width: 100%;
+      height: 35px;
+      text-align: left;
+  }
+  .imagemap360-control-left {
+      float: left;
+      padding: 0;
+      top: 100%;
+      margin: -20% 0 0 2%;
+  }
+  .imagemap360-control-right {
+      float: right;
+      padding: 0;
+      top: 100%;
+      margin: -20% 2% 0 0;
+  }
+  .imagemap360-control-right,
+  .imagemap360-control-left,
+  .imagemap360-control-full,
+  .imagemap360-control-nofull img {
+      max-width: 60px;
+      height: auto;
+  }
+  .imagemap360-control-full,
+  .imagemap360-control-nofull {
+      float: left;
+      padding: 0;
+      margin: 0 0 0 45%;
+      color: yellow;
+      text-decoration: none;
+      font-size: 25px;
+      line-height: 30px;
+      width: auto;
+      text-align: center;
+      font-family: 'Arial', sans-serif
+  }
+  .imagemap360-control-left:hover,
+  .imagemap360-control-right:hover {
+      text-decoration: none;
+  }

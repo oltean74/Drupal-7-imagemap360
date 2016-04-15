@@ -1,0 +1,38 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function imagine_panoramica_schema() {
+  $schema['imagine_panorama'] = array(
+    'description' => 'Stocheaza date pentru imagine panoramica.',
+    'fields' => array(
+      'hid' => array(
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique image ID.',
+      ),
+      'fid' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Primary Key: File ID that contains coords.',
+      ),
+      'coordinates' => array(
+        'type' => 'text',
+        'not null' => TRUE,
+        'description' => 'The coords data (JSON).',
+      ),
+    ),
+    'primary key' => array('hid', 'fid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function imagine_panoramica_uninstall() {
+  variable_del('imagine_panorama_fields');
+}

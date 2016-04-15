@@ -1,0 +1,292 @@
+<?php
+
+define('IMAGINE_PANORAMA_STYLE', 'imagine_panoramica');
+include_once 'includes/imagine_panoramica.db.inc';
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter().
+ */
+function imagine_panoramica_form_field_ui_field_edit_form_alter(&$form, &$form_state) {
+  if ($form['#field']['type'] == 'image') {
+    $panoramicacoord_fields = variable_get('imagine_panorama_fields', array());
+    $form['instance']['settings']['imagine_panorama'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Choose panorama image'),
+      '#weight' => 12,
+      '#default_value' => isset($panoramicacoord_fields[$form['instance']['bundle']['#value']][$form['instance']['field_name']['#value']]) ? TRUE : FALSE,
+    );
+    $form['#submit'][] = 'imagine_panoramica_form_field_ui_submit';
+  }
+}
+
+/**
+ * Save field name with panoramicacoords.
+ */
+function imagine_panoramica_form_field_ui_submit($form, $form_state) {
+  $panoramicacoord_fields = variable_get('imagine_panorama_fields', array());
+  $content_type = $form_state['values']['instance']['bundle'];
+  $field_name = $form_state['values']['instance']['field_name'];
+
+  if ($form_state['values']['instance']['settings']['imagine_panorama']) {
+    $panoramicacoord_fields[$content_type][$field_name] = $field_name;
+    variable_set('imagine_panorama_fields', $panoramicacoord_fields);
+  }
+  elseif (isset($panoramicacoord_fields[$content_type][$field_name])) {
+    unset($panoramicacoord_fields[$content_type][$field_name]);
+    variable_set('imagine_panorama_fields', $panoramicacoord_fields);
+  }
+}
+
+/**
+ * Implements hook_image_default_styles().
+ */
+function imagine_panoramica_image_default_styles() {
+  return array(
+    IMAGINE_PANORAMA_STYLE => array(
+      'effects' => array(
+        array(
+          'name' => 'image_scale',
+          'data' => array('width' => 2448, 'height' => '', 'upscale' => FALSE),
+          'weight' => 0,
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_element_info_alter().
+ */
+function imagine_panoramica_element_info_alter(&$type) {
+  $type['managed_file']['#after_build'][] = 'imagine_panoramica_process_form_element';
+}
+
+/**
+ * After build function to process the panoramicacoord widget on forms.
+ */
+function imagine_panoramica_process_form_element($element, &$form_state) {
+
+  if (!isset($element['#field_name'])) {
+    return $element;
+  }
+
+  $panoramicacoord_fields = variable_get('imagine_panorama_fields', array());
+  if (!isset($panoramicacoord_fields[$element['#bundle']][$element['#field_name']]) || !$element['fid']['#value']) {
+    return $element;
+  }
+
+  $panoramicacoord_data = '';
+  $exist_value = '';
+  $id = explode('-', $element['#id']);
+  $delta = array_pop($id);
+  $flag_value = isset($form_state['values'][$element['#field_name']][$element['#language']][$delta]['imagine_panorama_flag']) ? $form_state['values'][$element['#field_name']][$element['#language']][$delta]['imagine_panorama_flag'] : 'create';
+
+  if (isset($form_state['values'][$element['#field_name']][$element['#language']][$delta]['imagine_panorama'])) {
+    $exist_panoramicacoords = $form_state['values'][$element['#field_name']][$element['#language']][$delta]['imagine_panorama'];
+  }
+  else {
+    $exist_panoramicacoords = imagine_panoramica_db_get_coordinates(array($element['fid']['#value']));
+  }
+
+  if (!empty($exist_panoramicacoords)) {
+    if (is_array($exist_panoramicacoords)) {
+      $exist_value = $exist_panoramicacoords[0]->coordinates;
+      $flag_value = 'update';
+    }
+    else {
+      $exist_value = $exist_panoramicacoords;
+    }
+    $exist_panoramicacoords = drupal_json_decode($exist_value);
+    $dimensions = array(
+      'width' => $element['width']['#value'],
+      'height' => $element['height']['#value'],
+    );
+    image_style_transform_dimensions(IMAGINE_PANORAMA_STYLE, $dimensions);
+
+    foreach ($exist_panoramicacoords as $panoramicacoord) {
+      $x1 = $panoramicacoord['x1'] ? $dimensions['width'] / (100 / $panoramicacoord['x1']) : 0;
+      $y1 = $panoramicacoord['y1'] ? $dimensions['height'] / (100 / $panoramicacoord['y1']) : 0;
+      $x2 = $dimensions['width'] / (100 / $panoramicacoord['x2']);
+      $y2 = $dimensions['height'] / (100 / $panoramicacoord['y2']);
+      $panoramicacoord_data .= '<div class="imagine-panorama-data-item" x1="' . $x1 . '" x2="' . $x2 . '" y1="' . $y1 . '" y2="' . $y2 . '">';
+      $panoramicacoord_data .= '<div class="img-panorama-data-title">' . $panoramicacoord['title'] . '</div>';
+      $panoramicacoord_data .= '<div class="img-panorama-data-wrapper">';
+      $panoramicacoord_data .= '<label>' . t('Title') . '</label><input class="img-panorama-title" type="text" size="50" value="' . $panoramicacoord['title'] . '" />';
+      $panoramicacoord_data .= '<label>' . t('Description') . '</label><textarea class="img-panorama-descr" type="text" rows="2" cols="25">' . $panoramicacoord['description'] . '</textarea>';
+      $panoramicacoord_data .= '<button class="img-panorama-save" style="background-color:#3EA99F">' . t('Save') . '</button>';
+      $panoramicacoord_data .= '<button class="img-panorama-remove" style=background-color="#E77471">' . t('Remove') . '</button>';
+
+      $panoramicacoord_data .= '</div></div>';
+    }
+  }
+
+  $element['imagine_panorama_flag'] = array(
+    '#type' => 'hidden',
+    '#value' => $flag_value,
+    '#id' => $element['#id'] . '-imagine_panorama_flag',
+    '#name' => $element['#name'] . '[imagine_panorama_flag]',
+    '#weight' => 10,
+  );
+
+  $element['imagine_panorama'] = array(
+    '#type' => 'hidden',
+    '#value' => $exist_value,
+    '#id' => $element['#id'] . '-imagine_panorama',
+    '#name' => $element['#name'] . '[imagine_panorama]',
+    '#weight' => 10,
+  );
+
+  $element['imagine_panorama']['#prefix'] = '<div class="imagine-panorama-edit">';
+  $element['imagine_panorama']['#prefix'] .= '<label>' . t('Add a panorama image') . '</label>';
+  $element['imagine_panorama']['#prefix'] .= '<div class="imagine-panorama-img">' . imagine_panoramica_widget($element) . '</div>';
+  $element['imagine_panorama']['#prefix'] .= '<div class="imagine-panorama-coordinates">';
+
+  $element['imagine_panorama']['#suffix'] = '</div>';
+  $element['imagine_panorama']['#suffix'] .= '<div class="imagine-panorama-data">' . $panoramicacoord_data . '</div>';
+  $element['imagine_panorama']['#suffix'] .= '<div class="imagine-panorama-form">';
+  $element['imagine_panorama']['#suffix'] .= '<div class="imagine-panorama-inputs">';
+  $element['imagine_panorama']['#suffix'] .= '<div class="imagine-panorama-data-item">';
+  $element['imagine_panorama']['#suffix'] .= '<div class="img-panorama-data-title"></div>';
+  $element['imagine_panorama']['#suffix'] .= '<div class="img-panorama-data-wrapper">';
+  $element['imagine_panorama']['#suffix'] .= '<label>' . t('Title') . '</label><input class="img-panorama-title" type="text" size="50" />';
+  $element['imagine_panorama']['#suffix'] .= '<label>' . t('Description') . '</label><textarea class="img-panorama-descr" type="text" rows="2" cols="25"></textarea>';
+  $element['imagine_panorama']['#suffix'] .= '<button class="img-panorama-save" style="background-color:#3EA99F">' . t('Save') . '</button>';
+  $element['imagine_panorama']['#suffix'] .= '<button class="img-panorama-remove" style="background-color:#E77471">' . t('Remove') . '</button>';
+  $element['imagine_panorama']['#suffix'] .= '</div></div></div>';
+  $element['imagine_panorama']['#suffix'] .= '<div class="imagine-panorama-add"><button class="img-panorama-add" style="background-color:#BCC6CC">' . t('Add') . '</button></div>';
+  $element['imagine_panorama']['#suffix'] .= '</div></div>';
+
+  $form_state['imagine_panorama_fields'][$element['#field_name']] = $element['#field_name'];
+
+  return $element;
+}
+
+/**
+ * Create a widget to create and manage panoramicacoords.
+ *
+ * @param $element
+ *   Form element of the image.
+ */
+function imagine_panoramica_widget(&$element) {
+  $output = '';
+
+  if (isset($element['#file']->uri)) {
+    $image_style = array(
+      'style_name' => IMAGINE_PANORAMA_STYLE,
+      'path' => $element['#file']->uri,
+      'width' => $element['width']['#value'],
+      'height' => $element['height']['#value'],
+    );
+
+    $output .= theme_image_style($image_style);
+
+    $element['#attached'] = array(
+      'js' => array(
+        drupal_get_path('module', 'imagine_panoramica') . '/includes/jcrop/jquery.Jcrop.min.js',
+        drupal_get_path('module', 'imagine_panoramica') . '/includes/jquery.json-2.4.min.js',
+        drupal_get_path('module', 'imagine_panoramica') . '/includes/imagine_panoramica.js',
+      ),
+      'css' => array(
+        drupal_get_path('module', 'imagine_panoramica') . '/includes/jcrop/jquery.Jcrop.min.css',
+        drupal_get_path('module', 'imagine_panoramica') . '/css/imagine_panoramica.css',
+      )
+    );
+  }
+
+  return $output;
+}
+
+/**
+ * Implements hook_node_submit().
+ */
+function imagine_panoramica_node_submit($node, $form, &$form_state) {
+  if (isset($form_state['imagine_panorama_fields'])) {
+    foreach ($form_state['imagine_panorama_fields'] as $panoramicacoord_field) {
+      $images = current($form_state['values'][$panoramicacoord_field]);
+
+      foreach ($images as $image) {
+        if (!$image['fid']) {
+          continue;
+        }
+        if ($image['imagine_panorama'] == '') {
+          imagine_panoramica_db_delete($image['fid']);
+        }
+        elseif ($image['imagine_panorama_flag'] == 'create') {
+          imagine_panoramica_db_save($image['fid'], $image['imagine_panorama']);
+        }
+        elseif ($image['imagine_panorama_flag'] == 'update') {
+          imagine_panoramica_db_update($image['fid'], $image['imagine_panorama']);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function imagine_panoramica_node_view($node, $view_mode, $langcode) {
+  $panoramicacoord_fields = variable_get('imagine_panorama_fields', array());
+  $images = array();
+
+  if (!empty($panoramicacoord_fields[$node->type])) {
+    foreach ($panoramicacoord_fields[$node->type] as $field_name) {
+      if (empty($node->content[$field_name]) || $node->content[$field_name]['#formatter'] != 'image') {
+        continue;
+      }
+      $image_delta = element_children($node->content[$field_name]);
+      foreach ($image_delta as $delta) {
+        $fid = $node->content[$field_name][$delta]['#item']['fid'];
+        $images[$fid]['fid'] = $fid;
+        $node->content[$field_name][$delta]['#item']['attributes']['id'] = 'imagine-panorama-' . $fid;
+        $node->content[$field_name][$delta]['#item']['attributes']['class'][] = 'imagine-panorama';
+$node->content[$field_name][$delta]['#item']['attributes']['usemap'][] = '#imagine';
+  
+ }
+    }
+    if (!empty($images)) {
+      $panoramicacoords_data = imagine_panoramica_db_get_coordinates(array_keys($images));
+      $panoramicacoords = array();
+      if (!empty($panoramicacoords_data)) {
+        $scripts = drupal_add_js();
+        $settings = $scripts['settings']['data'];
+        foreach ($panoramicacoords_data as $imagine_panoramica) {
+          foreach ($settings as $setting) {
+            if (isset($setting['imaginePanoramica']['fid' . $imagine_panoramica->fid])) {
+              continue 2;
+            }
+          }
+          $panoramicacoords['fid' . $imagine_panoramica->fid] = drupal_json_decode($imagine_panoramica->coordinates);
+        }
+        if (!empty($panoramicacoords)) {
+          drupal_add_js(array('imaginePanoramica' => $panoramicacoords), 'setting');
+          drupal_add_js(drupal_get_path('module', 'imagine_panoramica') . '/includes/imagine_panoramica.js');
+          drupal_add_js(drupal_get_path('module', 'imagine_panoramica') . '/includes/imagemap360.js');
+          drupal_add_js(drupal_get_path('module', 'imagine_panoramica') . '/includes/imagemap_init.js');
+          drupal_add_js(drupal_get_path('module', 'imagine_panoramica') . '/includes/jquery.tooltip.js');
+          drupal_add_js(drupal_get_path('module', 'imagine_panoramica') . '/includes/tooltip.js');
+          drupal_add_css(drupal_get_path('module', 'imagine_panoramica') . '/css/imagemap360.css');
+          drupal_add_css(drupal_get_path('module', 'imagine_panoramica') . '/css/jquery.tooltip.css');
+
+        }
+      }        
+       else {
+          drupal_add_js(drupal_get_path('module', 'imagine_panoramica') . '/includes/imagemap360.js');
+          drupal_add_js(drupal_get_path('module', 'imagine_panoramica') . '/includes/imagemap_init.js');
+          drupal_add_css(drupal_get_path('module', 'imagine_panoramica') . '/css/imagemap360.css');
+        }
+    }
+  }
+}
+
+/**
+ * Implements hook_field_delete_instance().
+ */
+function imagine_panoramica_field_delete_instance($instance) {
+  $panoramicacoord_fields = variable_get('imagine_panorama_fields', array());
+
+  if (isset($panoramicacoord_fields[$instance['bundle']]['field_name'])) {
+    unset($panoramicacoord_fields[$instance['bundle']]['field_name']);
+    variable_set('imagine_panorama_fields');
+  }
+}

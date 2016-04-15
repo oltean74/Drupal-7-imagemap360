@@ -1,0 +1,16 @@
+name = Imagine panoramica
+description = Module allows you to mark the different areas of the image by text labels.
+core = 7.x
+
+dependencies[] = image
+
+version = 7.x-1.0
+
+
+
+; Information added by drupal.org packaging script on 2013-09-20
+version = "7.x-2.21"
+core = "7.x"
+project = "imagine_panoramica"
+datestamp = "1379653679"
+
